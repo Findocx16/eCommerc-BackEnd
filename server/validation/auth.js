@@ -27,7 +27,7 @@ const verify = (req, res, next) => {
             }
         );
     } else {
-        return res.send({ auth: "failed" });
+        return res.send({ message: "Please log in first" });
     }
 };
 

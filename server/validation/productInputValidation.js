@@ -19,4 +19,5 @@ const quantityAddToCartValidation = (data) => {
     });
     return schema.validate(data);
 };
+
 export { addProductValidation, quantityAddToCartValidation };

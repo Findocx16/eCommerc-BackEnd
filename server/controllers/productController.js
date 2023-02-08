@@ -6,6 +6,19 @@ import {
     quantityAddToCartValidation,
 } from "../validation/productInputValidation.js";
 
+async function disableStockCountZero() {
+    //Queries the database for all products with a stock count of 0.
+    const products = await Product.find({ stockCount: 0 });
+    if (products.length > 0) {
+        //If any such products are found, it iterates through them.
+        for (const product of products) {
+            //Saves the updated product in the database.
+            product.isActive = false;
+            await product.save();
+        }
+    }
+}
+
 async function addProduct(req, res) {
     const { error } = addProductValidation(req.body);
     const { isAdmin, fullName } = decode(req.headers.authorization);
@@ -36,19 +49,6 @@ async function addProduct(req, res) {
         return res.status(200).json({ message: "Product added successfully" });
     } catch (error) {
         return res.status(500).json({ message: error.message });
-    }
-}
-
-async function disableStockCountZero() {
-    //Queries the database for all products with a stock count of 0.
-    const products = await Product.find({ stockCount: 0 });
-    if (products.length > 0) {
-        //If any such products are found, it iterates through them.
-        for (const product of products) {
-            //Saves the updated product in the database.
-            product.isActive = false;
-            await product.save();
-        }
     }
 }
 
@@ -243,7 +243,13 @@ async function addToCart(req, res) {
         const product = await Product.findById({ _id: productID });
         if (!product)
             return res.status(404).json({ message: "Product not found." });
+        if (product.isActive == false) {
+            return res
+                .status(400)
+                .json({ message: "Product is currently unavailable" });
+        }
 
+        //check if the product is disabled
         if (product.stockCount == 0) {
             product.isActive = false;
             await product.save();
@@ -305,6 +311,100 @@ async function addToCart(req, res) {
     }
 }
 
+async function changeQuantityOrder(req, res) {
+    const { isAdmin, userId } = decode(req.headers.authorization);
+    const productID = req.params.id;
+    const { error } = quantityAddToCartValidation(req.body);
+
+    try {
+        if (error)
+            return res.status(400).json({ message: error.details[0].message });
+
+        if (isAdmin)
+            return res.status(401).json({ message: "User not authorized" });
+
+        const product = await Product.findById({ _id: productID });
+        if (!product)
+            return res.status(404).json({ message: "Product not found" });
+
+        //check if the product is disabled
+        if (product.isActive == false) {
+            return res
+                .status(400)
+                .json({ message: "Product is currently unavailable" });
+        }
+
+        const user = await User.findById({ _id: userId });
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        //So i can get the current value of user.cartTotal without it being overwritten by the rest of the code.
+        let curretCartTotal = user.cartTotal;
+
+        //checks if the products array of an order contains an object with a productName property that is equal to the product name of the product passed as a parameter.
+        const orderIndex = user.orders.findIndex((order) => {
+            return order.products.some((productInOrder) => {
+                return productInOrder.productName === product.productName;
+            });
+        });
+
+        if (product.stockCount == 0) {
+            product.isActive = false;
+            await product.save();
+            return res
+                .status(400)
+                .json({ message: "Item is currently unavailable." });
+        }
+
+        let currentQuantity = user.orders[orderIndex].products.find(
+            (p) => p.productName === product.productName
+        ).quantity;
+
+        if (product.stockCount + currentQuantity < req.body.quantity)
+            return res.status(400).json({
+                message: `Not enough stocks, amount you can add is upto ${
+                    product.stockCount + currentQuantity
+                }`,
+            });
+
+        //check if the it will add or subtract the difference between quantities to stock count
+        if (currentQuantity > req.body.quantity) {
+            let diff = currentQuantity - req.body.quantity;
+            product.stockCount += diff;
+        } else if (currentQuantity < req.body.quantity) {
+            let diff = req.body.quantity - currentQuantity;
+            product.stockCount -= diff;
+        } else {
+            return res
+                .status(400)
+                .json({ message: "The same amount was entered" });
+        }
+        const newTotal = product.productPrice * req.body.quantity;
+        curretCartTotal =
+            curretCartTotal - user.orders[orderIndex].totalAmount + newTotal;
+        user.cartTotal = curretCartTotal;
+
+        user.orders[orderIndex].products.find(
+            (p) => p.productName === product.productName
+        ).quantity = req.body.quantity;
+
+        user.orders[orderIndex].totalAmount =
+            product.productPrice * req.body.quantity;
+
+        //updates the cart total depending on the number of total amount of specific order
+
+        await user.save();
+        await product.save();
+        //this will update the status of product if it hits zero
+        await disableStockCountZero();
+
+        return res.status(200).json({
+            message: `${product.productName} quantity is updated`,
+        });
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+}
+
 export {
     addProduct,
     viewActiveProducts,
@@ -313,4 +413,5 @@ export {
     archiveProduct,
     unArchiveProduct,
     addToCart,
+    changeQuantityOrder,
 };
