@@ -4,6 +4,7 @@ import { decode } from "../validation/auth.js";
 import {
     addProductValidation,
     quantityAddToCartValidation,
+    updateProductValidation,
 } from "../validation/productInputValidation.js";
 
 async function disableStockCountZero() {
@@ -117,6 +118,7 @@ async function viewSpecificProduct(req, res) {
 async function updateProduct(req, res) {
     const { isAdmin } = decode(req.headers.authorization);
     const productID = req.params.id;
+    const { error } = updateProductValidation(req.body);
 
     try {
         //Verifies if the user is authorized. If the user is not authorized, it returns a response with an error message.

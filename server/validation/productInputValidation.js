@@ -12,6 +12,20 @@ const addProductValidation = (data) => {
     });
     return schema.validate(data);
 };
+const updateProductValidation = (data) => {
+    const schema = Joi.object({
+        productName: Joi.string().label("Product name"),
+        productDescription: Joi.string()
+            .required()
+            .label("Product description"),
+        listedBy: Joi.string().label("Listed by:"),
+        isActive: Joi.boolean().label("Product description"),
+        listedBy: Joi.string().label("Listed by:"),
+        productPrice: Joi.number().label("Product price"),
+        stockCount: Joi.number().label("Number of stocks"),
+    });
+    return schema.validate(data);
+};
 
 const quantityAddToCartValidation = (data) => {
     const schema = Joi.object({
@@ -20,4 +34,8 @@ const quantityAddToCartValidation = (data) => {
     return schema.validate(data);
 };
 
-export { addProductValidation, quantityAddToCartValidation };
+export {
+    addProductValidation,
+    quantityAddToCartValidation,
+    updateProductValidation,
+};

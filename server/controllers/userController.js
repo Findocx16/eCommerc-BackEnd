@@ -3,6 +3,7 @@ import Product from "../models/Products.js";
 import {
     userRegisterValidation,
     userLoginValidation,
+    userUpdateValidation,
 } from "../validation/userInputValidation.js";
 import bcrypt from "bcrypt";
 import { createAccessToken, decode } from "../validation/auth.js";
@@ -75,7 +76,63 @@ async function userDetails(req, res) {
         return res.status(500).json({ message: error.message });
     }
 }
+async function updateDetails(req, res) {
+    const { userId } = decode(req.headers.authorization);
+    const { error } = userUpdateValidation(req.body);
 
+    try {
+        if (error)
+            return res.status(400).json({ message: error.details[0].message });
+        const updates = {};
+        Object.entries(req.body).forEach(([key, value]) => {
+            if (
+                [
+                    "firstName",
+                    "lastName",
+                    "email",
+                    "password",
+                    "address",
+                ].includes(key)
+            ) {
+                updates[key] = value;
+            }
+            if (key === "address") {
+                updates.address = {};
+                Object.entries(value).forEach(([addressKey, addressValue]) => {
+                    if (
+                        ["street", "city", "province", "zipcode"].includes(
+                            addressKey
+                        )
+                    ) {
+                        updates.address[addressKey] = addressValue;
+                    }
+                });
+            }
+        });
+
+        if (req.body.password) {
+            const salt = await bcrypt.genSalt(Number(process.env.SALT));
+            const hashPassword = await bcrypt.hash(req.body.password, salt);
+            updates.password = hashPassword;
+        }
+
+        //Queries the database for a product with the specified ID and updates it with the filtered fields.
+        const user = await User.findOneAndUpdate({ _id: userId }, updates, {
+            new: true,
+        });
+
+        if (!user)
+            return res
+                .status(404)
+                .json({ message: "User not found, please log in again" });
+
+        return res.status(200).json({
+            message: `${user.firstName}'s details updated successfully`,
+        });
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+}
 async function createAdmin(req, res) {
     const { isAdmin } = decode(req.headers.authorization);
     const userId = req.params.id;
@@ -275,4 +332,5 @@ export {
     viewAllOrders,
     checkOutOrders,
     removeAuthenticatedOrders,
+    updateDetails,
 };

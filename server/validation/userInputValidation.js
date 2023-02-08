@@ -18,6 +18,23 @@ const userRegisterValidation = (data) => {
     });
     return schema.validate(data);
 };
+const userUpdateValidation = (data) => {
+    //Validates the data passed to it for registering a user. It checks if the following fields are present and meet certain criteria
+    const schema = Joi.object({
+        firstName: Joi.string().label("First name"),
+        lastName: Joi.string().label("Last name"),
+        email: Joi.string().email().label("Email"),
+        password: JoiPasswordComplexity().label("Password"),
+        mobileNo: Joi.number().label("Mobile No."),
+        address: {
+            street: Joi.string().required().label("Street"),
+            city: Joi.string().required().label("City"),
+            province: Joi.string().required().label("Province"),
+            zipcode: Joi.string().required().label("Zipcode"),
+        },
+    });
+    return schema.validate(data);
+};
 
 const userLoginValidation = (data) => {
     const schema = Joi.object({
@@ -27,4 +44,4 @@ const userLoginValidation = (data) => {
     return schema.validate(data);
 };
 
-export { userRegisterValidation, userLoginValidation };
+export { userRegisterValidation, userLoginValidation, userUpdateValidation };
