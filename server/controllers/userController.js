@@ -13,13 +13,12 @@ async function userRegistration(req, res) {
 
     try {
         //Validate the incoming request body using "userRegisterValidation" function. If the validation fails, it returns a 400 error with the first validation error message.
-        if (error)
-            return res.status(400).json({ message: error.details[0].message });
+        if (error) return res.status(400).send(error.details[0].message);
 
         //Check if the provided email is already registered by querying the User collection with the same email.
         const user = await User.findOne({ email: req.body.email });
         if (user)
-            return res.status(400).json({
+            return res.status(401).json({
                 message: "Email is already registered please log in instead",
             });
 
@@ -31,7 +30,7 @@ async function userRegistration(req, res) {
         await new User({ ...req.body, password: hashPassword }).save();
         return res.status(201).json({ message: "User created successfully" });
     } catch (err) {
-        return res.status(500).json({ message: err.message });
+        return res.status(500).send(err.message);
     }
 }
 
@@ -39,23 +38,19 @@ async function userLogin(req, res) {
     const { error } = userLoginValidation(req.body);
 
     try {
-        if (error)
-            return res.status(400).json({ message: error.details[0].message });
+        if (error) return res.status(400).json({ message: error.details[0].message });
 
         const user = await User.findOne({ email: req.body.email });
         if (!user) return res.status(404).json({ message: "User not found" });
 
         // Compares the password from the request body to the hashed password stored in the database using the bcrypt library's compareSync function.
-        const validPassword = bcrypt.compareSync(
-            req.body.password,
-            user.password
-        );
+        const validPassword = bcrypt.compareSync(req.body.password, user.password);
         if (!validPassword)
             return res.status(400).json({ message: "Password incorrect" });
 
         //If the email and password are valid, it creates a JSON Web Token
         createAccessToken(user);
-        return res.status(201).json({ message: createAccessToken(user) });
+        return res.status(201).send({ message: createAccessToken(user) });
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }
@@ -66,10 +61,7 @@ async function userDetails(req, res) {
 
     try {
         //Decodes the JSON Web Token (JWT) passed in the authorization header to extract the user ID
-        const user = await User.findById(
-            { _id: userId },
-            { _id: 0, userCreatedOn: 0, __v: 0 }
-        );
+        const user = await User.findById({ _id: userId });
         if (!user) return res.status(404).json({ message: "User not found" });
         return res.status(200).json({ user });
     } catch (error) {
@@ -81,29 +73,16 @@ async function updateDetails(req, res) {
     const { error } = userUpdateValidation(req.body);
 
     try {
-        if (error)
-            return res.status(400).json({ message: error.details[0].message });
+        if (error) return res.status(400).json({ message: error.details[0].message });
         const updates = {};
         Object.entries(req.body).forEach(([key, value]) => {
-            if (
-                [
-                    "firstName",
-                    "lastName",
-                    "email",
-                    "password",
-                    "address",
-                ].includes(key)
-            ) {
+            if (["firstName", "lastName", "email", "password", "address"].includes(key)) {
                 updates[key] = value;
             }
             if (key === "address") {
                 updates.address = {};
                 Object.entries(value).forEach(([addressKey, addressValue]) => {
-                    if (
-                        ["street", "city", "province", "zipcode"].includes(
-                            addressKey
-                        )
-                    ) {
+                    if (["street", "city", "province", "zipcode"].includes(addressKey)) {
                         updates.address[addressKey] = addressValue;
                     }
                 });
@@ -139,14 +118,10 @@ async function createAdmin(req, res) {
 
     try {
         if (!isAdmin)
-            return res
-                .status(401)
-                .json({ message: "Current user is not authorized" });
+            return res.status(401).json({ message: "Current user is not authorized" });
         const user = await User.findById({ _id: userId });
         if (!user)
-            return res
-                .status(404)
-                .json({ message: "User not found in the database" });
+            return res.status(404).json({ message: "User not found in the database" });
 
         //If the user is already an admin, it returns a 400 Bad Request error with a message indicating that the user is already an admin.
         if (user.isAdmin)
@@ -155,9 +130,7 @@ async function createAdmin(req, res) {
                 .json({ message: `${user.firstName} is currently an admin` });
         user.isAdmin = true;
         await user.save();
-        return res
-            .status(200)
-            .json({ message: `${user.firstName} is now an admin` });
+        return res.status(200).json({ message: `${user.firstName} is now an admin` });
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }
@@ -168,14 +141,9 @@ async function viewAuthenticatedOrders(req, res) {
 
     try {
         if (!userId) return res.status(404).json({ message: "Invalid token" });
-        const user = await User.findById(
-            { _id: userId },
-            { orders: 1, cartTotal: 1 }
-        );
+        const user = await User.findById({ _id: userId }, { orders: 1, cartTotal: 1 });
         if (!user)
-            return res
-                .status(404)
-                .json({ message: "User not found in the database" });
+            return res.status(404).json({ message: "User not found in the database" });
         if (!user.orders.length)
             return res
                 .status(404)
@@ -190,8 +158,7 @@ async function viewAllOrders(req, res) {
     const { isAdmin } = decode(req.headers.authorization);
 
     try {
-        if (!isAdmin)
-            return res.status(401).json({ message: "User not authorized" });
+        if (!isAdmin) return res.status(401).json({ message: "User not authorized" });
         const product = await User.find(
             { orders: { $ne: [] } },
             { firstName: 1, lastName: 1, orders: 1 }
@@ -216,13 +183,9 @@ async function checkOutOrders(req, res) {
                 .json({ message: "Admin is not authorize to checkout" });
         const user = await User.findById({ _id: userId });
         if (!user)
-            return res
-                .status(404)
-                .json({ message: "User not found in the database" });
+            return res.status(404).json({ message: "User not found in the database" });
         if (!user.orders.length)
-            return res
-                .status(404)
-                .json({ message: "No item in the cart to check out" });
+            return res.status(404).json({ message: "No item in the cart to check out" });
 
         //Calculates the total amount of all orders, the sum of quantities of all products, and the name of a product.
         let productName;
@@ -283,8 +246,7 @@ async function removeAuthenticatedOrders(req, res) {
     const orderId = req.params.id;
 
     try {
-        if (!userId)
-            return res.status(401).json({ message: "User not authorized" });
+        if (!userId) return res.status(401).json({ message: "User not authorized" });
 
         //Finds the user in the database based on the userId obtained from the decoded token.
         const user = await User.findById({ _id: userId });
@@ -305,9 +267,7 @@ async function removeAuthenticatedOrders(req, res) {
         }
 
         //Filters the user's orders array and removes the order with the matching id.
-        const updatedOrders = user.orders.filter(
-            (order) => order.id !== orderId
-        );
+        const updatedOrders = user.orders.filter((order) => order.id !== orderId);
 
         if (updatedOrders === []) {
             return res.status(404).json({ message: "Empty cart" });

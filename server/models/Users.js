@@ -5,6 +5,14 @@ const addressSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    barangay: {
+        type: String,
+        required: true,
+    },
+    landmark: {
+        type: String,
+        required: true,
+    },
     city: {
         type: String,
         required: true,

@@ -7,7 +7,10 @@ const createAccessToken = (user) => {
         email: user.email,
         isAdmin: user.isAdmin,
     };
-    return jwt.sign(data, process.env.ACCESS_TOKEN_KEY, {});
+    const options = {
+        algorithm: "HS256",
+    };
+    return jwt.sign(data, process.env.ACCESS_TOKEN_KEY, options);
 };
 
 const verify = (req, res, next) => {
@@ -15,17 +18,13 @@ const verify = (req, res, next) => {
     if (typeof token !== "undefined") {
         token = token.slice(7, token.length);
 
-        return jwt.verify(
-            token,
-            process.env.ACCESS_TOKEN_KEY,
-            (error, data) => {
-                if (error) {
-                    return res.send({ auth: "failed" });
-                } else {
-                    next();
-                }
+        return jwt.verify(token, process.env.ACCESS_TOKEN_KEY, (error, data) => {
+            if (error) {
+                return res.send({ auth: "failed" });
+            } else {
+                next();
             }
-        );
+        });
     } else {
         return res.send({ message: "Please log in first" });
     }
@@ -35,17 +34,13 @@ const decode = (token) => {
     if (typeof token !== "undefined") {
         token = token.slice(7, token.length);
 
-        return jwt.verify(
-            token,
-            process.env.ACCESS_TOKEN_KEY,
-            (error, data) => {
-                if (error) {
-                    return res.status(400).json({ message: "decode error" });
-                } else {
-                    return jwt.decode(token, { complete: true }).payload;
-                }
+        return jwt.verify(token, process.env.ACCESS_TOKEN_KEY, (error, data) => {
+            if (error) {
+                return res.status(400).json({ message: "decode error" });
+            } else {
+                return jwt.decode(token, { complete: true }).payload;
             }
-        );
+        });
     }
 };
 

@@ -26,12 +26,10 @@ async function addProduct(req, res) {
 
     try {
         //Validate user input
-        if (error)
-            return res.status(400).json({ message: error.details[0].message });
+        if (error) return res.status(400).json({ message: error.details[0].message });
 
         //Decode the authorization header to check if the user making the request is an admin.
-        if (!isAdmin)
-            return res.status(401).json({ message: "User is not authorized" });
+        if (!isAdmin) return res.status(401).json({ message: "User is not authorized" });
 
         const product = await Product.findOne({
             productName: req.body.productName,
@@ -62,21 +60,10 @@ async function viewActiveProducts(req, res) {
         const user = await Product.find({});
         if (!user.length)
             //If no products are found, it returns a response with a "No product found, please add one" error message.
-            return res
-                .status(404)
-                .json({ message: "No product found, please add one" });
+            return res.status(404).json({ message: "No product found, please add one" });
 
         //Queries the database for all active products.
-        const userActive = await Product.find(
-            { isActive: true },
-            {
-                _id: 0,
-                productName: 1,
-                productDescription: 1,
-                productPrice: 1,
-                stockCount: 1,
-            }
-        );
+        const userActive = await Product.find({ isActive: true });
 
         //If no active products are found, it returns a response with a "No active product found" error message.
         if (!userActive.length)
@@ -88,25 +75,28 @@ async function viewActiveProducts(req, res) {
         return res.status(500).json({ message: error.message });
     }
 }
+async function viewAllProducts(req, res) {
+    try {
+        //Queries the database for a product with the specified ID.
+        const product = await Product.find({});
+        //If the product is not found, it returns a response with a "Product unavailable." error message.
+        if (!product.length)
+            return res.status(404).json({ message: "Product unavailable." });
 
+        //If the product is found, it returns a response with a JSON object containing the product details.
+        res.status(200).json({ product: product });
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+}
 async function viewSpecificProduct(req, res) {
     const productID = req.params.id;
 
     try {
         //Queries the database for a product with the specified ID.
-        const product = await Product.findById(
-            { _id: productID },
-            {
-                _id: 0,
-                productName: 1,
-                productDescription: 1,
-                productPrice: 1,
-                stockCount: 1,
-            }
-        );
+        const product = await Product.findById({ _id: productID });
         //If the product is not found, it returns a response with a "Product unavailable." error message.
-        if (!product)
-            return res.status(404).json({ message: "Product unavailable." });
+        if (!product) return res.status(404).json({ message: "Product unavailable." });
 
         //If the product is found, it returns a response with a JSON object containing the product details.
         res.status(200).json({ product: product });
@@ -122,8 +112,7 @@ async function updateProduct(req, res) {
 
     try {
         //Verifies if the user is authorized. If the user is not authorized, it returns a response with an error message.
-        if (!isAdmin)
-            return res.status(401).json({ message: "User is not authorized" });
+        if (!isAdmin) return res.status(401).json({ message: "User is not authorized" });
 
         //Filters the request body to only keep valid fields to update the product.
         const updates = {};
@@ -143,20 +132,15 @@ async function updateProduct(req, res) {
         });
 
         //Queries the database for a product with the specified ID and updates it with the filtered fields.
-        const product = await Product.findOneAndUpdate(
-            { _id: productID },
-            updates,
-            { new: true }
-        );
+        const product = await Product.findOneAndUpdate({ _id: productID }, updates, {
+            new: true,
+        });
 
         //If the product is not found, it returns a response with a "Product not found" error message.
-        if (!product)
-            return res.status(404).json({ message: "Product not found" });
+        if (!product) return res.status(404).json({ message: "Product not found" });
 
         //If the product is updated successfully, it returns a response with a message indicating the updated product.
-        return res
-            .status(200)
-            .json({ message: `${product.productName} updated` });
+        return res.status(200).send({ message: `${product.productName} updated` });
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }
@@ -167,15 +151,13 @@ async function archiveProduct(req, res) {
 
     try {
         //Decode the authorization header to check if the user is authorized (an admin)
-        if (!isAdmin)
-            return res.status(401).json({ message: "User is not authorized" });
+        if (!isAdmin) return res.status(401).json({ message: "User is not authorized" });
 
         //Extract the product ID from the request parameters
 
         //Look for the product using the ID in the database
         const product = await Product.findById({ _id: productID });
-        if (!product)
-            return res.status(404).json({ message: "Product not found." });
+        if (!product) return res.status(404).json({ message: "Product not found." });
 
         //Check if the product is already archived (isActive is set to false)
         if (!product.isActive)
@@ -204,13 +186,11 @@ async function unArchiveProduct(req, res) {
 
     try {
         //Decode the authorization header to check if the user is authorized (admin).
-        if (!isAdmin)
-            return res.status(401).json({ message: "User is not authorized" });
+        if (!isAdmin) return res.status(401).json({ message: "User is not authorized" });
 
         //Search for the product with the given ID.
         const product = await Product.findById({ _id: productID });
-        if (!product)
-            return res.status(404).json({ message: "Product not found." });
+        if (!product) return res.status(404).json({ message: "Product not found." });
 
         //Check if the product is already active or not.
         if (product.isActive)
@@ -235,29 +215,22 @@ async function addToCart(req, res) {
 
     try {
         //Validates the quantity in the request body
-        if (error)
-            return res.status(400).json({ message: error.details[0].message });
+        if (error) return res.status(400).json({ message: error.details[0].message });
 
         //Verifies that the user is not an admin
-        if (isAdmin)
-            return res.status(400).json({ message: "Non-admin user only" });
+        if (isAdmin) return res.status(400).json({ message: "Non-admin user only" });
 
         const product = await Product.findById({ _id: productID });
-        if (!product)
-            return res.status(404).json({ message: "Product not found." });
+        if (!product) return res.status(404).json({ message: "Product not found." });
         if (product.isActive == false) {
-            return res
-                .status(400)
-                .json({ message: "Product is currently unavailable" });
+            return res.status(400).json({ message: "Product is currently unavailable" });
         }
 
         //check if the product is disabled
         if (product.stockCount == 0) {
             product.isActive = false;
             await product.save();
-            return res
-                .status(400)
-                .json({ message: "Item is currently unavailable." });
+            return res.status(400).json({ message: "Item is currently unavailable." });
         }
 
         //If the requested quantity is greater than the available stock, returns a 400 error with a message indicating the available stock
@@ -319,21 +292,16 @@ async function changeQuantityOrder(req, res) {
     const { error } = quantityAddToCartValidation(req.body);
 
     try {
-        if (error)
-            return res.status(400).json({ message: error.details[0].message });
+        if (error) return res.status(400).json({ message: error.details[0].message });
 
-        if (isAdmin)
-            return res.status(401).json({ message: "User not authorized" });
+        if (isAdmin) return res.status(401).json({ message: "User not authorized" });
 
         const product = await Product.findById({ _id: productID });
-        if (!product)
-            return res.status(404).json({ message: "Product not found" });
+        if (!product) return res.status(404).json({ message: "Product not found" });
 
         //check if the product is disabled
         if (product.isActive == false) {
-            return res
-                .status(400)
-                .json({ message: "Product is currently unavailable" });
+            return res.status(400).json({ message: "Product is currently unavailable" });
         }
 
         const user = await User.findById({ _id: userId });
@@ -352,9 +320,7 @@ async function changeQuantityOrder(req, res) {
         if (product.stockCount == 0) {
             product.isActive = false;
             await product.save();
-            return res
-                .status(400)
-                .json({ message: "Item is currently unavailable." });
+            return res.status(400).json({ message: "Item is currently unavailable." });
         }
 
         let currentQuantity = user.orders[orderIndex].products.find(
@@ -376,9 +342,7 @@ async function changeQuantityOrder(req, res) {
             let diff = req.body.quantity - currentQuantity;
             product.stockCount -= diff;
         } else {
-            return res
-                .status(400)
-                .json({ message: "The same amount was entered" });
+            return res.status(400).json({ message: "The same amount was entered" });
         }
         const newTotal = product.productPrice * req.body.quantity;
         curretCartTotal =
@@ -389,8 +353,7 @@ async function changeQuantityOrder(req, res) {
             (p) => p.productName === product.productName
         ).quantity = req.body.quantity;
 
-        user.orders[orderIndex].totalAmount =
-            product.productPrice * req.body.quantity;
+        user.orders[orderIndex].totalAmount = product.productPrice * req.body.quantity;
 
         //updates the cart total depending on the number of total amount of specific order
 
@@ -406,7 +369,26 @@ async function changeQuantityOrder(req, res) {
         return res.status(500).json({ message: error.message });
     }
 }
+async function deleteProduct(req, res) {
+    const productID = req.params.id;
+    const { isAdmin } = decode(req.headers.authorization);
 
+    try {
+        if (!isAdmin) {
+            return res.status(401).json({ message: "User not authorized" });
+        }
+
+        const product = await Product.findByIdAndDelete(productID);
+
+        if (!product) {
+            return res.status(404).json({ message: "Product not found" });
+        }
+
+        return res.status(200).json({ message: "Product deleted successfully" });
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+}
 export {
     addProduct,
     viewActiveProducts,
@@ -416,4 +398,6 @@ export {
     unArchiveProduct,
     addToCart,
     changeQuantityOrder,
+    viewAllProducts,
+    deleteProduct,
 };

@@ -11,6 +11,8 @@ const userRegisterValidation = (data) => {
         mobileNo: Joi.number().required().label("Mobile No."),
         address: {
             street: Joi.string().required().label("Street"),
+            barangay: Joi.string().required().label("Barangay"),
+            landmark: Joi.string().required().label("Landmark"),
             city: Joi.string().required().label("City"),
             province: Joi.string().required().label("Province"),
             zipcode: Joi.string().required().label("Zipcode"),
@@ -28,6 +30,8 @@ const userUpdateValidation = (data) => {
         mobileNo: Joi.number().label("Mobile No."),
         address: {
             street: Joi.string().required().label("Street"),
+            barangay: Joi.string().required().label("Barangay"),
+            landmark: Joi.string().required().label("Landmark"),
             city: Joi.string().required().label("City"),
             province: Joi.string().required().label("Province"),
             zipcode: Joi.string().required().label("Zipcode"),
